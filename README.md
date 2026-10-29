@@ -4,6 +4,10 @@ A full-stack ticketing portal with a status workboard, cumulative SLA tracking, 
 
 ![Ticket workboard with synthetic demo data](docs/images/workboard.png)
 
+**Live demo:** [digital-ticket-portal.billytamaputra.workers.dev](https://digital-ticket-portal.billytamaputra.workers.dev) · **Hosting:** Cloudflare Workers Free + D1 Free.
+
+Public visitors see synthetic read-only data. Actual tickets require the owner's admin login; file uploads are disabled until optional R2 is activated.
+
 ## Features
 
 - Dashboard, five latest status updates, search/date filters (WIB), CSV export.
