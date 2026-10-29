@@ -4,12 +4,12 @@ Migrasi data bukan deployment source. Men-deploy repo ini membuat database baru 
 
 ## Pilihan A — mulai dari database kosong
 
-Untuk portofolio, pilihan paling sederhana: jalankan panduan HOSTING, gunakan demo publik sintetis, dan buat tiket baru setelah login admin. Tidak ada data pribadi/klien yang masuk repo publik.
+Untuk portofolio, pilihan paling sederhana: jalankan panduan HOSTING, buat tiket baru langsung pada workspace publik. Tidak ada data pribadi/klien yang masuk repo publik.
 
 ## Pilihan B — pindahkan tiket asli
 
 1. Jadwalkan waktu penghentian perubahan pada portal lama. Tutup sesi lain supaya snapshot tiket, event dan lampiran konsisten.
-2. Dalam Chrome yang sudah login dan mendapat akses portal lama, buka endpoint `/api/tickets` pada origin portal tersebut, lalu simpan respons JSON sebagai `migration-data/tickets.json`. Folder ini di-ignore Git. CSV dari dashboard bukan backup lengkap karena tidak menyertakan riwayat event atau metadata lampiran.
+2. Dalam Chrome yang mendapat akses portal lama (login jika portal lama masih memerlukannya), buka endpoint `/api/tickets` pada origin portal tersebut, lalu simpan respons JSON sebagai `migration-data/tickets.json`. Folder ini di-ignore Git. CSV dari dashboard bukan backup lengkap karena tidak menyertakan riwayat event atau metadata lampiran.
 3. Siapkan backup di penyimpanan privat milik sendiri. Jangan mengunggah JSON/SQL atau file asli ke GitHub, screenshot portofolio, atau folder public.
 4. Buat target D1 kosong dan terapkan migrasi struktur sesuai HOSTING.
 5. Konversi snapshot ke SQL:
@@ -32,7 +32,7 @@ Script mempertahankan ID, version, timestamp, attachment keys, dan seluruh event
 JSON/SQL tidak berisi bytes file. Setiap attachment harus ikut dipindahkan dengan **key yang sama**:
 
 - Jika punya akses administratif bucket lama, gunakan mekanisme ekspor/copy R2 dengan kredensial yang disimpan privat.
-- Jika akses hanya lewat portal, login ke portal lama dan unduh `/api/files/<key>` untuk setiap key dalam metadata JSON. Simpan dengan nama key aslinya, bukan nama unduhan default.
+- Jika akses hanya lewat portal, buka portal lama dan unduh `/api/files/<key>` untuk setiap key dalam metadata JSON. Simpan dengan nama key aslinya, bukan nama unduhan default.
 - Setelah R2 target diaktifkan, unggah setiap file ke key yang sama:
 
 ```sh
@@ -46,5 +46,5 @@ Jangan membuka bucket ke publik. Jangan menghapus resource lama sebelum semua fi
 - Bandingkan jumlah tiket, event, dan lampiran dengan snapshot.
 - Bandingkan ID, status, priority, created_at, changed_at, dan version.
 - Pastikan CANCEL/Completed tetap berhenti, sementara status aktif melanjutkan perhitungan dari timestamp lama. Waktu selama perpindahan tetap terhitung untuk tiket aktif.
-- Uji reopen, konflik version, download file, dan login/logout.
+- Uji reopen, konflik version, download file, dan akses tanpa login.
 - Ganti link yang dibagikan setelah validasi. Pertahankan backup dan portal lama sampai migrasi diterima; penghapusan lama dilakukan terpisah.

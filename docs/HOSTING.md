@@ -1,17 +1,10 @@
-# Hosting di akun Cloudflare sendiri
+# Hosting Cloudflare — public workspace
 
-Target: Cloudflare **Workers Free + D1 Free**, dengan subdomain `workers.dev`. Domain berbayar dan R2 tidak diperlukan untuk menjalankan tiket/SLA. Lampiran dinonaktifkan sampai binding R2 tersedia.
+Target: **Workers Free + D1 Free**, with a `workers.dev` URL. No admin login, password, session secret, custom domain or R2 subscription is needed for the basic app. Every visitor can read, create and change tickets in the same shared database.
 
-## 1. Buat akun
+## Local development
 
-- Cloudflare: https://dash.cloudflare.com/sign-up
-- GitHub: https://github.com/signup
-
-Pendaftaran, verifikasi email, persetujuan ketentuan, dan autentikasi dilakukan sendiri oleh pemilik akun. Jangan kirim password, API token, atau kode OTP ke chat/repository.
-
-## 2. Instal dan coba lokal
-
-Gunakan Node.js 24 LTS dan terminal di root repository portofolio:
+Node.js 24 LTS:
 
 ```sh
 npm ci
@@ -21,18 +14,11 @@ npm run db:local
 npm run dev
 ```
 
-Buka URL localhost yang dicetak Wrangler. Placeholder database ID hanya untuk lokal; tidak dapat dipakai untuk deployment remote. Data lokal ada di `.wrangler/standalone` dan tidak masuk Git.
+The database is simulated locally in `.wrangler/standalone`. No `.dev.vars` file is required. Schema migrations are append-only; the historical login-attempts migration remains for compatibility but is unused.
 
-Default `PUBLIC_DEMO=true` menampilkan **data contoh sintetis**, bukan database asli. Tanpa secret, login admin belum aktif dan perubahan data ditolak. Untuk lokal, buat `.dev.vars` berisi password uji minimal 16 karakter dan secret sesi acak minimal 32 karakter:
+## First deployment
 
-```dotenv
-ADMIN_PASSWORD="replace-with-a-long-local-test-password"
-SESSION_SECRET="replace-with-a-random-at-least-32-character-secret"
-```
-
-Nilai di atas placeholder; buat nilai sendiri. `.dev.vars` sudah di-ignore Git. Login dibatasi 10 percobaan per IP per jendela 15 menit; gunakan password panjang yang unik. Auth admin memakai satu akun pemilik, bukan sistem login multiuser.
-
-## 3. Hubungkan Cloudflare dan buat D1
+Create your own Cloudflare account and authenticate through Wrangler:
 
 ```sh
 npx wrangler login
@@ -40,77 +26,48 @@ npx wrangler whoami
 npx wrangler d1 create ticket-portal-db
 ```
 
-Pilih akun Cloudflare yang benar. Salin UUID database dari hasil perintah ke `d1_databases[0].database_id` dalam `wrangler.local.jsonc`. Sesuaikan `database_name` dan `name` Worker jika nama sudah dipakai. Config ini tidak di-commit.
-
-Tetap gunakan Workers **Free**, jangan upgrade ke Workers Paid. Tidak ada domain berbayar, paket Pro, atau layanan berbayar yang dibutuhkan untuk konfigurasi dasar.
-
-## 4. Terapkan migrasi dan secret
+Set the returned database UUID in `wrangler.local.jsonc`, preserving binding `DB`. The example UUID is for local development only. Choose Workers Free; do not upgrade to Paid if you want to stay on the free plan.
 
 ```sh
 npm run db:remote
-npx wrangler secret put ADMIN_PASSWORD --config wrangler.local.jsonc
-npx wrangler secret put SESSION_SECRET --config wrangler.local.jsonc
-```
-
-Wrangler meminta nilai secret lewat prompt; jangan masukkan ke argumen shell, file source, atau GitHub. Password minimal 16 karakter; SESSION_SECRET minimal 32 karakter dan harus acak. Secret put dapat membuat draft Worker sebelum deployment pertama. Jika Wrangler meminta konfirmasi, periksa akun dan resource yang dituju.
-
-## 5. Deploy
-
-```sh
 npm test
 npm run typecheck
 npm run deploy
 ```
 
-Buka URL HTTPS `workers.dev` dari hasil deployment di Chrome. Demo publik hanya memperlihatkan data sintetis. Klik **Login admin** untuk melihat dan mengelola database asli. API dan file asli selalu memerlukan sesi admin.
+Use the URL printed by Wrangler. Config containing account/database identifiers stays local and is ignored by Git. Future deployments need only `npm run deploy`; run remote migrations only when new migrations are added. Existing tickets and SLA history remain in D1 across deployments.
 
-Untuk portal yang seluruh datanya privat, ubah `PUBLIC_DEMO` menjadi `"false"` dan deploy ulang; halaman login tetap dapat dibuka tanpa akun ChatGPT.
+## Upgrade from the former admin version
 
-## 6. R2 opsional: lampiran
+Deploy the new source against the same D1 binding. No data migration, reset or authentication is required for the app. Old `/auth/*` endpoints return HTTP 410. Legacy admin secrets are not read by the app and can be removed from Worker settings separately. Historical migration files must not be edited or replayed manually.
 
-R2 bukan syarat untuk membuat tiket atau menjalankan SLA. Untuk mengaktifkan upload:
+## Optional R2
 
-1. Aktifkan R2 di Dashboard dan periksa checkout serta ketentuan billing sendiri. R2 memiliki kuota gratis, tetapi pemakaian di atasnya berbayar.
-2. Buat bucket:
+File upload is disabled without `BUCKET`. To enable it, review and activate the R2 subscription in the dashboard, create a bucket, add the binding and redeploy:
 
 ```sh
 npx wrangler r2 bucket create ticket-portal-files
 ```
 
-3. Tambahkan ke `wrangler.local.jsonc`:
-
 ```json
-"r2_buckets": [{ "binding": "BUCKET", "bucket_name": "ticket-portal-files" }]
+"r2_buckets": [{"binding":"BUCKET","bucket_name":"ticket-portal-files"}]
 ```
 
-4. Deploy ulang. Form upload otomatis aktif ketika binding tersedia. Bucket tidak perlu dibuka publik.
+The bucket itself need not have a public bucket URL, but uploaded files are downloadable by all portal visitors through the public file API. R2 usage above its free quota can incur charges. The current deployment leaves R2 disabled.
 
-## Kuota dan biaya
+## Quotas
 
-Diperiksa 29 Oktober 2026:
+Checked 29 October 2026. Workers Free: 100,000 Worker requests/day and 10ms CPU/request. D1 Free: 5 GB total account storage, 5 million rows read/day and 100,000 rows written/day. R2 Standard optional: 10 GB-month storage, 1 million class A and 10 million class B operations/month included. Rp0 depends on staying within free quotas and keeping optional paid services disabled.
 
-- Workers Free: 100.000 request Worker/hari; CPU 10 ms/request. Aset statis dilayani terpisah; frontend tidak di-render di Worker.
-- D1 Free: 5 GB total akun, 5 juta baris dibaca/hari, 100.000 baris ditulis/hari. Free memiliki batas ukuran per database; cek Limits sebelum memindahkan dataset besar.
-- R2 Standard opsional: 10 GB-month, 1 juta operasi A dan 10 juta operasi B/bulan. Ada biaya jika melewati kuota.
+The app polls every 15s per active browser. Full dataset reads are suitable for a small project; add server pagination for larger usage. No uptime guarantee or production capacity claim is made for the free plan.
 
-Rp0 berlaku selama memakai paket gratis dan pemakaian dalam kuota. Konfigurasi ini tidak berlangganan Workers Paid atau mengaktifkan R2 otomatis. Jangan menganggap budget alert sebagai hard spending cap untuk R2. Jangan aktifkan R2 jika ingin menghindari layanan dengan kemungkinan biaya overage.
+## Verify
 
-App polling data setiap 15 detik per browser aktif. GET saat ini membaca seluruh tiket dan event; untuk dataset besar perlu pagination/query server-side, bukan mengandalkan kuota gratis tanpa batas. Free tier tidak menjamin uptime/SLA infrastruktur dan belum ada pengukuran CPU produksi pada akunmu.
+Open in a new/incognito browser without cookies. Create a ticket, update it from another browser, confirm shared state after refresh, test CANCEL/reopen and preserved SLA history. Cross-origin writes should return 403 and stale-version writes 409. No login UI or demo substitution should appear.
 
-## Verifikasi setelah deploy
-
-- Di incognito, demo hanya berisi data fiktif dan update ditolak.
-- Login admin, buat tiket, ubah status sampai CANCEL, dan buka kembali; pastikan riwayat serta akumulasi SLA benar.
-- Refresh halaman dan periksa data masih tersimpan.
-- Logout; file dan tiket asli tidak dapat diakses anonim.
-- Jika R2 aktif, uji satu upload/download kecil. Pantau D1, Worker, dan R2 usage di Dashboard.
-
-## Referensi resmi
+## Official references
 
 - https://developers.cloudflare.com/workers/platform/pricing/
 - https://developers.cloudflare.com/workers/platform/limits/
-- https://developers.cloudflare.com/workers/static-assets/
 - https://developers.cloudflare.com/d1/platform/pricing/
-- https://developers.cloudflare.com/workers/wrangler/commands/d1/
 - https://developers.cloudflare.com/r2/pricing/
-- https://developers.cloudflare.com/r2/get-started/

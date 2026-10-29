@@ -10,7 +10,7 @@
     "build": "vite build --config vite.standalone.config.ts",
     "dev": "wrangler dev --config wrangler.local.jsonc --local --persist-to .wrangler/standalone",
     "typecheck": "tsc --noEmit",
-    "test": "node --test tests/sla.test.mjs tests/auth.test.mjs tests/migration.test.mjs",
+    "test": "node --test tests/sla.test.mjs tests/migration.test.mjs",
     "test:api": "node tests/standalone-api.mjs",
     "db:local": "wrangler d1 migrations apply DB --local --config wrangler.local.jsonc --persist-to .wrangler/standalone",
     "db:remote": "wrangler d1 migrations apply DB --remote --config wrangler.local.jsonc",

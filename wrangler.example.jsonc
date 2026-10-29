@@ -17,7 +17,7 @@
     "database_id": "00000000-0000-4000-8000-000000000000",
     "migrations_dir": "standalone/migrations"
   }],
-  "vars": { "PUBLIC_DEMO": "true" }
+  "vars": {}
   // Optional R2: activate only after reviewing Cloudflare's subscription/usage terms.
   // ,"r2_buckets": [{"binding":"BUCKET","bucket_name":"ticket-portal-files"}]
 }

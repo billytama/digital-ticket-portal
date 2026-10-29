@@ -1,6 +1,6 @@
 # Menyiapkan portofolio GitHub
 
-Repository ini adalah full-stack ticketing portal: React/TypeScript, Cloudflare Workers, D1, R2 opsional. Fokus engineering: akumulasi SLA lintas status, transaksi perubahan status, optimistic concurrency, audit trail, dan pemisahan demo sintetis dari data admin.
+Repository ini adalah full-stack ticketing portal: React/TypeScript, Cloudflare Workers, D1, R2 opsional. Fokus engineering: akumulasi SLA lintas status, transaksi perubahan status, optimistic concurrency, audit trail, dan kolaborasi publik tanpa login.
 
 ## Upload pertama
 
@@ -31,7 +31,7 @@ Topics: `react`, `typescript`, `cloudflare-workers`, `cloudflare-d1`, `ticketing
 - Link demo `workers.dev` setelah deployment berhasil.
 - Jelaskan bahwa penghitungan SLA menggunakan timestamp server dan tetap benar setelah browser ditutup.
 - Jelaskan transaksi DB dan version check untuk menghindari dua update menimpa satu sama lain.
-- Sebutkan batasan secara jujur: admin tunggal, perhitungan 24/7, belum ada email/assignment, belum pagination, dan belum ada pengujian kapasitas produksi.
+- Sebutkan batasan secara jujur: workspace publik tanpa kontrol akses per pengguna, perhitungan 24/7, belum ada email/assignment, belum pagination, dan belum ada pengujian kapasitas produksi.
 
 ## Lisensi
 
