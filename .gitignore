@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars*
+.env*
+wrangler.local.jsonc
+migration-data/
+*.sqlite*
+*.tsbuildinfo
+.DS_Store

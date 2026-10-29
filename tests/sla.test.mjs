@@ -1,0 +1,15 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { sla, duration } from '../app/sla.ts';
+const hour=3600000;
+const base={id:1,title:'Test',description:'Test',reporter:'Tester',priority:'High',status:'Not started',created_at:0,changed_at:0,version:0,attachments:[],events:[]};
+const event=(from,to,start,end)=>({id:crypto.randomUUID(),ticket_id:1,from_status:from,to_status:to,started_at:start,ended_at:end,note:''});
+test('waiting time continues from persisted timestamp after reload',()=>{const s=sla(base,hour/2);assert.equal(s.elapsed,hour/2);assert.equal(s.breached,false);assert.equal(s.percent,50);});
+test('status switch preserves waiting time and starts work timer',()=>{const t={...base,status:'In progress',changed_at:hour,events:[event('Not started','In progress',0,hour)]};const s=sla(t,2*hour);assert.equal(s.times['Not started'],hour);assert.equal(s.elapsed,hour);assert.equal(s.breached,false);});
+test('completed SLA freezes while the page is closed',()=>{const t={...base,status:'Completed',changed_at:3*hour,events:[event('Not started','In progress',0,hour),event('In progress','Completed',hour,3*hour)]};assert.equal(sla(t,20*hour).elapsed,3*hour);assert.equal(sla(t,200*hour).elapsed,3*hour);});
+test('reopen excludes completed interval and accumulates work without resetting SLA',()=>{const t={...base,status:'In progress',changed_at:10*hour,events:[event('Not started','In progress',0,hour),event('In progress','Completed',hour,3*hour),event('Completed','In progress',3*hour,10*hour)]};const s=sla(t,13*hour);assert.equal(s.times['In progress'],5*hour);assert.equal(s.times['Not started'],hour);assert.equal(s.breached,true);});
+test('prior response breach remains after completion',()=>{const t={...base,status:'Completed',changed_at:2*hour,events:[event('Not started','Completed',0,2*hour)]};assert.equal(sla(t,30*hour).breached,true);});
+test('returning to waiting accumulates all waiting visits',()=>{const t={...base,changed_at:3*hour,events:[event('Not started','In progress',0,hour/2),event('In progress','Not started',hour/2,3*hour)]};assert.equal(sla(t,4*hour).times['Not started'],1.5*hour);assert.equal(sla(t,4*hour).breached,true);});
+test('negative client skew clamps elapsed and durations support >24 hours',()=>{assert.equal(sla(base,-1000).elapsed,0);assert.equal(duration(50*hour+61000),'50:01:01');});
+test('CANCEL freezes total active SLA and preserves prior breach',()=>{const t={...base,status:'CANCEL',changed_at:2*hour,events:[event('Not started','CANCEL',0,2*hour)]};assert.equal(sla(t,20*hour).elapsed,2*hour);assert.equal(sla(t,200*hour).elapsed,2*hour);assert.equal(sla(t,20*hour).breached,true);});
+test('reopen from CANCEL excludes cancelled interval and resumes accumulation',()=>{const t={...base,status:'In progress',changed_at:10*hour,events:[event('Not started','In progress',0,hour/2),event('In progress','CANCEL',hour/2,2*hour),event('CANCEL','In progress',2*hour,10*hour)]};const s=sla(t,11*hour);assert.equal(s.times['In progress'],2.5*hour);assert.equal(s.elapsed,2.5*hour);assert.equal(s.breached,false);});

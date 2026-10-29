@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+const base=process.env.TEST_ORIGIN||'http://127.0.0.1:8787';
+const url=new URL(base);if(!['localhost','127.0.0.1','[::1]'].includes(url.hostname))throw new Error('This test creates data: loopback targets only.');
+const vars=await readFile('.dev.vars','utf8');const password=vars.match(/^ADMIN_PASSWORD=["']?([^\r\n"']+)/m)?.[1];if(!password)throw new Error('Set local ADMIN_PASSWORD in .dev.vars.');
+let r=await fetch(base+'/api/tickets');assert.equal(r.status,200);const demo=await r.json();assert.equal(demo.tickets.length,4);assert.equal(demo.tickets[3].status,'CANCEL');
+r=await fetch(base+'/api/tickets',{method:'PATCH',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({id:1,status:'CANCEL',version:0})});assert.equal(r.status,401);
+r=await fetch(base+'/auth/login',{method:'POST',headers:{Origin:'https://evil.invalid','Content-Type':'application/json'},body:JSON.stringify({password})});assert.equal(r.status,403);
+r=await fetch(base+'/auth/login',{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({password})});assert.equal(r.status,200);const cookie=r.headers.get('set-cookie').split(';')[0];const headers={Origin:base,Cookie:cookie};
+const form=new FormData();for(const [k,v]of Object.entries({title:'Standalone auth QA',description:'Local-only integration test',priority:'High',reporter:'QA'}))form.set(k,v);
+r=await fetch(base+'/api/tickets',{method:'POST',headers,body:form});assert.equal(r.status,201);const {id}=await r.json();
+const patch=status=>fetch(base+'/api/tickets',{method:'PATCH',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({id,status,version:0})});
+const changes=await Promise.all([patch('CANCEL'),patch('In progress')]);assert.deepEqual(changes.map(x=>x.status).sort(),[200,409]);
+r=await fetch(base+'/api/tickets',{headers});let ticket=(await r.json()).tickets.find(t=>t.id===id);assert.equal(ticket.events.length,1);assert.equal(ticket.version,1);
+if(ticket.status!=='CANCEL'){r=await fetch(base+'/api/tickets',{method:'PATCH',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({id,status:'CANCEL',version:1})});assert.equal(r.status,200);}
+r=await fetch(base+'/api/tickets');assert.equal((await r.json()).tickets.some(t=>t.title==='Standalone auth QA'),false);
+const withFile=new FormData();for(const [k,v]of Object.entries({title:'R2 disabled QA',description:'Local',priority:'Low',reporter:'QA'}))withFile.set(k,v);withFile.set('attachment',new File(['test'],'qa.txt'));
+r=await fetch(base+'/api/tickets',{method:'POST',headers,body:withFile});assert.equal(r.status,400);
+r=await fetch(base+'/auth/logout',{method:'POST',headers});assert.equal(r.status,200);assert.match(r.headers.get('set-cookie'),/Max-Age=0/);
+console.log('PASS: demo isolation, anonymous write rejection, CSRF rejection, admin login, create, atomic version conflict, CANCEL, optional R2 rejection, logout cookie');

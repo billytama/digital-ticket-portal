@@ -1,0 +1,9 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {execFileSync} from 'node:child_process';
+import {DatabaseSync} from 'node:sqlite';
+const snapshot={tickets:[{id:7,title:"Client's worksheet; DROP TABLE tickets;",description:'Private migration test',reporter:'QA',priority:'High',status:'CANCEL',created_at:1000,changed_at:4000,version:1,attachments:[{key:'00000000-0000-4000-8000-000000000000',name:'test.txt',kind:'attachment',size:3}],events:[{id:'event-7',ticket_id:7,from_status:'Not started',to_status:'CANCEL',started_at:1000,ended_at:4000,note:"Client's cancellation"}]}]};
+test('migration preserves IDs, history, attachments, quotes, timestamps and next ID',()=>{const dir=mkdtempSync(join(tmpdir(),'ticket-migration-test-'));try{const input=join(dir,'snapshot.json');writeFileSync(input,JSON.stringify(snapshot));const sql=execFileSync(process.execPath,['scripts/import-tickets.mjs',input],{encoding:'utf8'});const db=new DatabaseSync(':memory:');db.exec(readFileSync('standalone/migrations/0001_tickets.sql','utf8'));db.exec(sql);const t=db.prepare('SELECT * FROM tickets WHERE id=7').get();assert.equal(t.title,snapshot.tickets[0].title);assert.equal(t.changed_at,4000);assert.equal(t.version,1);assert.equal(JSON.parse(t.attachments)[0].name,'test.txt');assert.equal(db.prepare('SELECT note FROM events').get().note,"Client's cancellation");assert.throws(()=>db.exec(sql),/UNIQUE/);db.exec("INSERT INTO tickets (title,description,reporter,priority,status,created_at,changed_at) VALUES ('New','New','QA','Low','Not started',5000,5000)");assert.equal(db.prepare('SELECT MAX(id) AS id FROM tickets').get().id,8);db.close();}finally{rmSync(dir,{recursive:true,force:true});}});
